@@ -20,28 +20,23 @@ module Galerts
     end
 
     def login
-      response = @agent.get(LOGIN_URL) # get login page
-      login_form = Nokogiri::HTML(response.body, nil, 'utf-8').css('form#gaia_loginform input') # get login form
-      params = get_login_form_params(login_form) # fetch form parameters and edit
-      response = @agent.post(LOGIN_URL, params) # do login
+      @agent.get(LOGIN_URL) # get login page
+      login_form = @agent.page.forms.first
+
+      unless login_form.nil?
+        login_form.Email = @email
+        form_response = login_form.submit
+      end
+      form_response = form_response.forms.first
+      unless form_response.nil?
+        form_response.Passwd = @password
+        response = form_response.submit
+      end
+
       error = response.parser.css('span[id^=errormsg]')
       unless error.empty?
         raise error.text.delete("\n").strip
       end
-    end
-
-    def get_login_form_params(login_form)
-      params = {
-        'Email'  => @email,
-        'Passwd' => @password
-      }
-
-      login_form.each do |input|
-        unless ['Email', 'Passwd', nil].include? input['name']
-          params[input['name']] = input['value']
-        end
-      end
-      params
     end
 
     def alerts_page
